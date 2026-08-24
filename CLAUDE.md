@@ -1,10 +1,17 @@
 # CLAUDE.md
 
 A **learning project**, not a production build. Full spec:
-`PRD — Self-Healing Text-to-SQL Assistant.md` — the north star for *what* the
-system eventually does. Ignore its observability/eval/MLOps ambitions
-(sections 21-28) until the fundamentals below work. Optimize for the user
-understanding every piece, not for finishing fast.
+`.claude/PRD — Self-Healing Text-to-SQL Assistant.md` — the north star for
+*what* the system eventually does. Ignore its observability/eval/MLOps
+ambitions (sections 21-28) until the fundamentals below work. Optimize for
+the user understanding every piece, not for finishing fast. Day-by-day build
+plan: `.claude/build-plan.html`.
+
+All Claude-authored/session-scoped files (PRD, build plan, future planning
+docs) live inside `.claude/` — never at the repo root.
+
+Whenever explaining, discussing, or teaching something to the user (not when
+writing code), respond using the `/unslop` skill only.
 
 ## Learning goals, in build order
 
