@@ -86,6 +86,15 @@ eval. Don't build retries before a working single-pass version exists.
   Claude`, no "generated with Claude Code" trailer, no such flag or footer of
   any kind. Commits are authored as the user, plain and unmarked.
 
+## Pacing
+
+Do one task at a time. After finishing a task, stop and report back — don't
+chain into the next task unless the user's prompt explicitly asks for more
+than one.
+
+Don't run/curl the API (or otherwise smoke-test it) unless asked. Editing
+code is enough; let the user run it.
+
 ## Teaching style
 
 - Small runnable example first, short explanation after. Not the reverse.

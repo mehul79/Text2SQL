@@ -342,6 +342,22 @@
     margin-bottom: 4px;
   }
 
+  .tag-done, .tag-partial {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: inline-block;
+    margin-bottom: 4px;
+  }
+
+  .tag-done { color: var(--done); }
+  .tag-partial { color: var(--repair); }
+
+  .block.done { border-left: 3px solid var(--done); }
+  .block.done h3::before { content: "\2713  "; color: var(--done); }
+
   /* ---------- closing ---------- */
 
   .closing { padding: 60px 0 0; }
@@ -453,7 +469,7 @@
     <div class="rail">
       <div class="day-num">01</div>
       <div class="day-theme">Ground floor: data, ORM, packages, API</div>
-      <p class="day-note">No AI yet beyond a single prompt at the end. Today is about Python that runs and a database that answers.</p>
+      <p class="day-note"><strong>✓ Complete.</strong> Postgres + Chinook schema, SQLAlchemy reflection, FastAPI routers, LLM provider module, single-pass query endpoint working end-to-end.</p>
       <div class="rail-label">Learning goals</div>
       <div class="goals">
         <span class="goal"><b>01</b> module routing &amp; packages</span>
@@ -464,63 +480,71 @@
     </div>
 
     <div class="blocks">
-      <div class="block">
+      <div class="block done">
         <div class="clock">60 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>Postgres with a real schema and a read-only role</h3>
-          <p>Spin up Postgres, seed <code>customers / orders / order_items / products</code> with enough rows that aggregates are interesting. Create a second login that holds only <code>CONNECT</code>, <code>USAGE</code>, <code>SELECT</code> — then prove it by trying a <code>DELETE</code> as that user and watching it be refused.</p>
+          <p>Spin up Postgres, load the <a href="https://github.com/lerocha/chinook-database">Chinook</a> sample database (<code>artist / album / track / genre / customer / invoice / invoice_line / employee / playlist / media_type / playlist_track</code> — 11 tables, real joins and aggregates already in the data). Create a second login that holds only <code>CONNECT</code>, <code>USAGE</code>, <code>SELECT</code> — then prove it by trying a <code>DELETE</code> as that user and watching it be refused.</p>
           <p class="why"><b>why now</b> — the security boundary is a database fact, not a prompt. Establishing it before any LLM code exists means it can never be retrofitted badly.</p>
         </div>
       </div>
 
-      <div class="block">
+      <div class="block done">
         <div class="clock">75 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>SQLAlchemy from the outside in</h3>
           <p>Notebook <code>01-sqlalchemy.ipynb</code>: create an engine, watch the connection pool check connections in and out, run Core <code>select()</code> against reflected tables, then define one ORM model over the same table to feel the difference. Reflect the live schema into a description the LLM can read.</p>
           <p class="why"><b>learn</b> — engine vs connection vs session lifetime; why pooling exists; when reflection beats hand-written models.</p>
         </div>
       </div>
 
-      <div class="block">
+      <div class="block done">
         <div class="clock">45 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>Turn the notebook into a package</h3>
           <p>Port to <code>backend/database/connection.py</code> and <code>schema.py</code>. Deliberately break the imports — run the file directly, then as <code>python -m backend.database.schema</code> — and fix them with absolute imports plus a root-level launch.</p>
           <p class="why"><b>learn</b> — <code>sys.path</code>, <code>__init__.py</code>, why <code>ModuleNotFoundError</code> depends on where you stood when you typed the command.</p>
         </div>
       </div>
 
-      <div class="block">
+      <div class="block done">
         <div class="clock">75 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>FastAPI: the parts that aren't boilerplate</h3>
           <p>Stand up <code>GET /api/health</code> and <code>GET /api/schema</code>. Model request and response with Pydantic so <code>/docs</code> becomes usable documentation. Hand the DB session to endpoints through <code>Depends</code> rather than importing a global.</p>
+          <p style="color:var(--muted);font-size:0.86rem">Split into <code>backend/api/routers/schema.py</code> and <code>models.py</code>; <code>main.py</code> just assembles them. Model-listing probe route kept as <code>GET /api/model/list</code>.</p>
           <p class="why"><b>learn</b> — dependency injection as request-scoped resource management; routers to keep <code>main.py</code> from becoming the whole app.</p>
         </div>
       </div>
 
-      <div class="block">
+      <div class="block done">
         <div class="clock">60 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>One LLM interface, several providers</h3>
           <p>A thin module reading <code>MODEL_PROVIDER</code>, <code>MODEL_NAME</code>, <code>TEMPERATURE</code> from <code>.env</code> and returning a configured chat model. Ask for structured output — <code>{sql, tables_used, reasoning}</code> — as a Pydantic model, not free text. Swap providers by editing <code>.env</code> only, and confirm nothing else changed.</p>
+          <p style="color:var(--muted);font-size:0.86rem">Provider locked to OpenCode Zen, so no <code>MODEL_PROVIDER</code> switch — <code>backend/llm/client.py</code> reads <code>BASE_URL</code>/<code>OPENROUTER_MODEL</code>/<code>TEMPERATURE</code> and returns structured <code>SQLResponse</code> via <code>with_structured_output</code>.</p>
           <p class="why"><b>learn</b> — configuration as the seam; structured output as the thing that makes the rest of the pipeline possible.</p>
         </div>
       </div>
 
-      <div class="block">
+      <div class="block done">
         <div class="clock">75 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>Wire the single pass</h3>
           <p><code>POST /api/query</code>: question in, schema into the prompt, SQL out, executed on the read-only connection, rows back. No retries, no validation, no graph — a straight line, on purpose.</p>
           <p class="why"><b>why bother</b> — this is the baseline the self-healing version has to beat, and by day four you'll want the number.</p>
         </div>
       </div>
 
-      <div class="gate">
-        <span class="lbl">End of day 1 — checkpoint</span>
-        <p>A real question (“revenue by region in 2025”) returns real rows through the API. Ask three harder ones and write down which ones failed and why — that list is tomorrow's specification.</p>
+      <div class=”gate”>
+        <span class=”lbl”>End of day 1 — checkpoint</span>
+        <p><strong>✓ Complete.</strong> A real question (“How many tracks are in the database?”) returns real rows through the API. Next: ask three harder ones — “total sales revenue by genre”, “which employee's customers spent the most”, “top 5 artists by number of tracks sold” — and write down which ones failed and why; that list is tomorrow's specification.</p>
       </div>
     </div>
   </section>
@@ -590,7 +614,7 @@
         <div class="clock">45 min</div>
         <div>
           <h3>Break it on purpose</h3>
-          <p>Feed the graph a prompt that references a table that doesn't exist. Watch <code>relation "customer" does not exist</code> come back, get diagnosed, get repaired, and succeed on attempt two. Save the rendered graph into the repo as the artefact of the day.</p>
+          <p>Feed the graph a prompt likely to make the model guess the plural, common-convention table name instead of Chinook's real singular one. Watch <code>relation "customers" does not exist</code> come back, get diagnosed, get repaired into <code>customer</code>, and succeed on attempt two. Save the rendered graph into the repo as the artefact of the day.</p>
           <p class="why"><b>why</b> — a self-healing system you've never seen heal is a claim, not a feature.</p>
         </div>
       </div>
