@@ -564,20 +564,23 @@
     </div>
 
     <div class="blocks">
-      <div class="block">
+      <div class="block done">
         <div class="clock">75 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>asyncio, demonstrated rather than described</h3>
           <p>Notebook <code>02-async.ipynb</code>: three fake LLM calls sequentially, then under <code>asyncio.gather</code> — time both. Then put a <code>time.sleep</code> inside a coroutine and watch the concurrency vanish. Fix it with <code>asyncio.to_thread</code>.</p>
           <p class="why"><b>learn</b> — the event loop is cooperative; one blocking call stalls everything. This is the bug you will otherwise ship on day three.</p>
         </div>
       </div>
 
-      <div class="block">
+      <div class="block done">
         <div class="clock">45 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>Make the stack actually async</h3>
           <p>Switch to the async LLM client. SQLAlchemy's sync driver stays, wrapped in <code>to_thread</code> so DB work leaves the loop free — noting the async-engine alternative without taking that detour today.</p>
+          <p style="color:var(--muted);font-size:0.86rem"><code>backend/api/routers/query.py</code>: <code>query()</code> is now <code>async def</code>, uses <code>structured_llm.ainvoke</code>; DB execute pulled into a sync <code>run_query()</code> helper and both it and <code>reflect_schema()</code> run via <code>asyncio.to_thread</code>.</p>
           <p class="why"><b>learn</b> — where <code>async def</code> in FastAPI helps, and where it's a lie you tell the framework.</p>
         </div>
       </div>

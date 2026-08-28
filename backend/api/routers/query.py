@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -31,9 +33,14 @@ def format_schema(tables: dict) -> str:
     return "\n".join(lines)
 
 
+def run_query(sql: str) -> list[dict]:
+    with readonly_engine.connect() as conn:
+        return [dict(row._mapping) for row in conn.execute(text(sql))]
+
+
 @router.post("/api/query", response_model=QueryResponse)
-def query(request: QueryRequest):
-    schema_text = format_schema(reflect_schema())
+async def query(request: QueryRequest):
+    schema_text = format_schema(await asyncio.to_thread(reflect_schema))
     prompt = (
         f"Database schema:\n{schema_text}\n\n"
         f"Question: {request.question}\n\n"
@@ -41,16 +48,15 @@ def query(request: QueryRequest):
         "that answers the question using only the tables and columns above."
     )
     structured_llm = get_llm().with_structured_output(SQLResponse)
-    result: SQLResponse = structured_llm.invoke(prompt)
+    result: SQLResponse = await structured_llm.ainvoke(prompt)
 
-    with readonly_engine.connect() as conn:
-        rows = [dict(row._mapping) for row in conn.execute(text(result.sql))]
+    rows = await asyncio.to_thread(run_query, result.sql)
 
     return QueryResponse(**result.model_dump(), rows=rows)
 
 
 if __name__ == "__main__":
-    response = query(QueryRequest(question="How many tracks are in the database?"))
+    response = asyncio.run(query(QueryRequest(question="How many tracks are in the database?")))
     assert response.sql
     assert len(response.rows) > 0
     print(response)
