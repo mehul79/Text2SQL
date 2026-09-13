@@ -1,0 +1,52 @@
+Demo pass (2026-09-19): 5 questions run through the full graph
+(backend/graph/build.py), two easy, two needing joins/aggregation, one
+engineered to fail on attempt 1 and recover.
+
+[easy] How many tracks are in the database?
+  attempt 1 sql: SELECT COUNT(*) AS track_count FROM track;
+  final status: ok, 0 repair(s)
+  answer: Query returned 1 row(s).
+
+[easy] How many customers are there?
+  attempt 1 sql: SELECT COUNT(*) AS customer_count FROM customer;
+  final status: ok, 0 repair(s)
+  answer: Query returned 1 row(s).
+
+[join+aggregation] What is the total sales revenue by genre?
+  attempt 1 sql: SELECT g.name AS genre, SUM(il.unit_price * il.quantity) AS total_sales_revenue
+FROM genre g
+LEFT JOIN track t ON g.genre_id = t.genre_id
+LEFT JOIN invoice_line il ON t.track_id = il.track_id
+GROUP BY g.genre_id, g.name
+ORDER BY total_sales_revenue DESC;
+  final status: ok, 0 repair(s)
+  answer: Query returned 25 row(s).
+
+[join+aggregation] Which employee's customers spent the most money in total?
+  attempt 1 sql: SELECT e.employee_id, e.first_name, e.last_name, SUM(i.total) AS total_spent
+FROM employee e
+JOIN customer c ON c.support_rep_id = e.employee_id
+JOIN invoice i ON i.customer_id = c.customer_id
+GROUP BY e.employee_id, e.first_name, e.last_name
+ORDER BY total_spent DESC
+LIMIT 1;
+  final status: ok, 0 repair(s)
+  answer: Query returned 1 row(s).
+
+[engineered to fail] List all customer names, forced to use the wrong (plural) table name
+  attempt 1 sql: SELECT first_name, last_name FROM customers;
+  attempt 1 error: unknown table: customers
+  attempt 2 sql: SELECT first_name, last_name FROM customer;
+  final status: ok, 1 repair(s)
+  answer: Query returned 59 row(s).
+
+first-attempt accuracy: 4/5
+recovered via repair:   1/5
+failed (unrecovered):   0/5
+
+Note: the first run of this pass (before this file's numbers) actually
+surfaced a real bug — sql_guard.py's column check didn't know ORDER BY /
+GROUP BY can reference a SELECT-list alias unqualified (e.g. `AS total_sales`
+then `ORDER BY total_sales`), so it flagged two valid queries as invalid and
+forced them through an unnecessary repair. Fixed in sql_guard.py with a
+regression test; first-attempt accuracy went from 2/5 to 4/5 once fixed.

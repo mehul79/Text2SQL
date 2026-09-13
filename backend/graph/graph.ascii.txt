@@ -1,0 +1,58 @@
+Rendered with: python -m backend.graph.build  (graph.get_graph().draw_ascii())
+
+                                +-----------+
+                                | __start__ |
+                                +-----------+
+                                       *
+                                       *
+                                       *
+                                +------------+
+                                | understand |
+                                +------------+
+                                       *
+                                       *
+                                       *
+                              +-----------------+
+                              | retrieve_schema |
+                              +-----------------+
+                                       *
+                                       *
+                                       *
+                               +--------------+
+                               | generate_sql |
+                               +--------------+
+                                       *
+                                       *
+                                       *
+                                 +----------+
+                              ...| validate |****
+                        ......   +----------+    ******
+                 .......        ..          ...        *******
+          .......             ..               .              ******
+    ......                  ..                  ...                 ******
+....              +-------------+                 ..                      ****
+  ..              | execute_sql |               ..                           *
+    ..            +-------------+             ..                             *
+      ..          ...          ...          ..                               *
+        ..       .                .       ..                                 *
+          ..   ..                  ..   ..                                   *
+       +---------+           +----------------+                            ***
+       | respond |           | diagnose_error |                        ****
+       +---------+           +----------------+                    ****
+             *                              ***                ****
+             *                                 **          ****
+             *                                   **     ***
+       +---------+                           +------------+
+       | __end__ |                           | repair_sql |
+       +---------+                           +------------+
+
+Break-it-on-purpose run (2026-09-19): forced generate_sql to emit
+`SELECT first_name, last_name FROM customers;` verbatim (customer is
+singular in the real schema). Result:
+
+  validate -> errors=["unknown table: customers"]
+  diagnose_error -> error_category="unknown_table"
+  repair_sql -> "SELECT first_name, last_name FROM customer;"
+  validate -> errors=[] -> execute_sql -> ok
+
+  attempts: 1, status: ok

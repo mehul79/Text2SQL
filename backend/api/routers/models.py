@@ -9,8 +9,8 @@ router = APIRouter()
 @router.get("/api/model/list")
 def list_models():
     response = requests.get(
-        "https://opencode.ai/zen/v1/models",
-        headers={"Authorization": f"Bearer {os.getenv('OPENCODE_API_KEY')}"},
+        f"{os.environ['BASE_URL'].rstrip('/')}/models",
+        headers={"Authorization": f"Bearer {os.environ['LLM_API_KEY']}"},
     )
     response.raise_for_status()
     return {"models": response.json()}

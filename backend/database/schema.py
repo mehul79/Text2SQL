@@ -21,6 +21,17 @@ def reflect_schema():
     return tables
 
 
+def format_schema(tables: dict) -> str:
+    lines = []
+    for table_name, columns in tables.items():
+        col_descriptions = ", ".join(
+            f"{c['name']} {c['type']}" + (f" -> {c['foreign_key']}" if c["foreign_key"] else "")
+            for c in columns
+        )
+        lines.append(f"{table_name}({col_descriptions})")
+    return "\n".join(lines)
+
+
 if __name__ == "__main__":
     tables = reflect_schema()
     assert "track" in tables
