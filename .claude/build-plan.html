@@ -527,7 +527,7 @@
           <span class="tag-done">Done</span>
           <h3>One LLM interface, several providers</h3>
           <p>A thin module reading <code>MODEL_PROVIDER</code>, <code>MODEL_NAME</code>, <code>TEMPERATURE</code> from <code>.env</code> and returning a configured chat model. Ask for structured output — <code>{sql, tables_used, reasoning}</code> — as a Pydantic model, not free text. Swap providers by editing <code>.env</code> only, and confirm nothing else changed.</p>
-          <p style="color:var(--muted);font-size:0.86rem">Provider locked to OpenCode Zen, so no <code>MODEL_PROVIDER</code> switch — <code>backend/llm/client.py</code> reads <code>BASE_URL</code>/<code>OPENROUTER_MODEL</code>/<code>TEMPERATURE</code> and returns structured <code>SQLResponse</code> via <code>with_structured_output</code>.</p>
+          <p style="color:var(--muted);font-size:0.86rem">Any OpenAI-compatible provider — <code>backend/llm/client.py</code> reads <code>BASE_URL</code>/<code>LLM_API_KEY</code>/<code>MODEL_NAME</code>/<code>TEMPERATURE</code> and returns structured <code>SQLResponse</code> via <code>with_structured_output</code>. Swapping provider is a <code>.env</code> edit, no code change.</p>
           <p class="why"><b>learn</b> — configuration as the seam; structured output as the thing that makes the rest of the pipeline possible.</p>
         </div>
       </div>
@@ -585,18 +585,20 @@
         </div>
       </div>
 
-      <div class="block">
+      <div class="block done">
         <div class="clock">60 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>LangGraph, smallest possible version</h3>
           <p>Notebook <code>03-langgraph.ipynb</code>: a <code>TypedDict</code> state, two nodes that each return a partial state update, one edge. Compile it. Print <code>graph.get_graph().draw_ascii()</code> before running anything.</p>
           <p class="why"><b>learn</b> — nodes are functions of state returning state deltas; the graph is data you can inspect, which is the entire reason to prefer it over a <code>while</code> loop.</p>
         </div>
       </div>
 
-      <div class="block">
+      <div class="block done">
         <div class="clock">70 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>Port the pipeline into nodes</h3>
           <p>Define <code>SQLAgentState</code> (question, schema, sql, errors, attempts, result, answer). Rebuild yesterday's straight line as: understand → retrieve schema → generate → execute → respond. Still linear, same output as day one — the shape changed, the behaviour didn't.</p>
           <p class="why"><b>learn</b> — a typed shared state as the contract between nodes; why every node stays independently callable.</p>
@@ -607,24 +609,28 @@
         <div class="clock">90 min</div>
         <div>
           <span class="tag-loop">The differentiator</span>
+          <span class="tag-done">Done</span>
           <h3>Conditional edges and the repair cycle</h3>
           <p>Add <code>validate</code>, <code>diagnose_error</code> and <code>repair_sql</code>. Route with a conditional edge: valid SQL goes to execution; a failure carries question, SQL, database error and schema into diagnosis, and the repaired query re-enters validation from the top. Bound it with <code>MAX_REPAIR_ATTEMPTS = 3</code> and a terminal failure state that says what went wrong instead of inventing an answer.</p>
           <p class="why"><b>learn</b> — cycles in a graph, the conditional-edge router as a plain function, and why the bound is load-bearing rather than defensive.</p>
+          <p style="color:var(--muted);font-size:0.86rem"><code>backend/graph/build.py</code> / <code>nodes.py</code>, matching the spec fully now: <code>diagnose_error</code> classifies the failure (<code>unknown_table</code>, <code>unknown_column</code>, <code>syntax_error</code>, <code>permission_denied</code>, <code>disallowed_operation</code>) and <code>repair_sql</code> injects a category-specific hint into the fix prompt instead of just the raw DB error.</p>
         </div>
       </div>
 
       <div class="block loop">
         <div class="clock">45 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>Break it on purpose</h3>
           <p>Feed the graph a prompt likely to make the model guess the plural, common-convention table name instead of Chinook's real singular one. Watch <code>relation "customers" does not exist</code> come back, get diagnosed, get repaired into <code>customer</code>, and succeed on attempt two. Save the rendered graph into the repo as the artefact of the day.</p>
           <p class="why"><b>why</b> — a self-healing system you've never seen heal is a claim, not a feature.</p>
+          <p style="color:var(--muted);font-size:0.86rem">Just asking the model to guess the plural table name no longer reliably breaks it — current models default back to the schema. <code>build.py</code>'s self-check now forces the literal query <code>SELECT first_name, last_name FROM customers;</code>, which still fails the same way (<code>unknown table: customers</code>) and still exercises the real repair path: <code>validate</code> fails → <code>diagnose_error</code> tags it <code>unknown_table</code> → <code>repair_sql</code> fixes it to <code>customer</code> → succeeds on attempt two. Diagram + run log saved to <code>backend/graph/graph.ascii.txt</code>.</p>
         </div>
       </div>
 
       <div class="gate">
         <span class="lbl">End of day 2 — checkpoint</span>
-        <p>Yesterday's three failing questions now pass, and the state shows how many attempts each took. The graph diagram matches the PRD's picture closely enough to be recognisable.</p>
+        <p><strong>✓ Complete.</strong> The repair loop works end to end, is wired into the API, classifies failures before repairing, and has a committed diagram plus a real run showing a repair happen.</p>
       </div>
     </div>
   </section>
@@ -644,54 +650,62 @@
     </div>
 
     <div class="blocks">
-      <div class="block">
+      <div class="block done">
         <div class="clock">75 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>Three layers of validation, none of them a prompt</h3>
           <p>Parse with <code>sqlglot</code> for syntax. Walk the parsed tree for table and column names, checking each against the reflected schema — this is what stops hallucinated columns reaching the database. Then the allowlist: <code>SELECT</code> and <code>WITH … SELECT</code> pass, everything else is rejected by default.</p>
           <p class="why"><b>learn</b> — static analysis of SQL as an AST rather than a string; allowlist over blocklist, because you can enumerate what's safe but never what isn't.</p>
+          <p style="color:var(--muted);font-size:0.86rem"><code>backend/security/sql_guard.py</code>: sqlglot syntax parse, single-statement check, node-type allowlist, known-table check, and now a known-column check too — resolves table aliases (<code>c.first_name</code> → <code>customer.first_name</code>) and skips CTE-derived columns rather than false-flagging them. Wired into <code>backend/graph/nodes.py</code>'s <code>validate</code> via a new <code>schema_columns</code> field on <code>SQLAgentState</code>. The day-4 demo pass caught a real bug here: <code>ORDER BY</code>/<code>GROUP BY</code> referencing a <code>SELECT ... AS x</code> alias was wrongly flagged as an unknown column — fixed, with a regression test (16 security tests total now).</p>
         </div>
       </div>
 
-      <div class="block">
+      <div class="block done">
         <div class="clock">50 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>The adversarial test file</h3>
           <p>One <code>test_security.py</code> of pure functions and asserts: stacked statements, a <code>DELETE</code> hidden in a CTE, a comment-smuggled <code>DROP</code>, an <code>UPDATE</code> dressed as a subquery. No LLM, no database, no fixtures — just inputs and expected refusals.</p>
           <p class="why"><b>learn</b> — a trust boundary is only real once it's tested in isolation from the thing it doesn't trust.</p>
         </div>
       </div>
 
-      <div class="block">
+      <div class="block done">
         <div class="clock">45 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>Guardrails at execution</h3>
           <p>Per-session <code>statement_timeout</code>, an enforced row cap, a wall-clock ceiling per request. A query that would scan everything gets cut off rather than served.</p>
           <p class="why"><b>learn</b> — timeouts and limits as the last layer, sitting under validation rather than replacing it.</p>
+          <p style="color:var(--muted);font-size:0.86rem"><code>backend/database/connection.py</code>: <code>SET statement_timeout</code> per connection and <code>fetchmany(MAX_ROWS)</code>. <code>backend/graph/nodes.py</code>'s <code>execute_sql</code> now wraps the query in <code>asyncio.wait_for(..., timeout=QUERY_WALL_CLOCK_SECONDS)</code> as an application-level backstop above the DB's own timeout, and a timeout is classified into its own <code>error_category</code> so the repair prompt tells the model to add a <code>LIMIT</code> or narrow the query instead of just retrying it verbatim.</p>
         </div>
       </div>
 
-      <div class="block">
+      <div class="block done">
         <div class="clock">60 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>The rest of the endpoints</h3>
           <p><code>POST /api/query</code> returns <code>query_id</code>, sql, status, attempts, rows and answer. <code>GET /api/query/{id}</code> retrieves a finished run from a small store. Errors return structured detail, not a stack trace.</p>
           <p class="why"><b>learn</b> — response models as the API contract; exception handlers; why the client shouldn't have to parse prose.</p>
         </div>
       </div>
 
-      <div class="block">
+      <div class="block done">
         <div class="clock">80 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>Streaming: the graph narrates itself</h3>
           <p><code>POST /api/query/stream</code> over Server-Sent Events, driven by <code>graph.astream</code>. Each node completion becomes one event — <code>schema_retrieved</code>, <code>sql_generated</code>, <code>validation_failed</code>, <code>repairing</code>, <code>executed</code>. Watch it with <code>curl -N</code> before a front end exists.</p>
           <p class="why"><b>learn</b> — async generators end to end, and why SSE is the right size of tool here rather than WebSockets (which day four adds anyway, for the comparison).</p>
+          <p style="color:var(--muted);font-size:0.86rem">Implemented in <code>backend/api/routers/query.py</code> using <code>graph.astream(..., stream_mode="updates")</code>, one SSE event per node. Verified live with <code>curl -N</code> against the same forced-bad-query prompt as day 2's artefact: <code>validate</code> fails → <code>diagnose_error</code> tags <code>unknown_table</code> → <code>repair_sql</code> fixes it → second <code>validate</code> passes → <code>execute_sql</code> returns rows → <code>[DONE]</code>, all streamed as separate events.</p>
         </div>
       </div>
 
       <div class="gate">
         <span class="lbl">End of day 3 — checkpoint</span>
-        <p><code>curl -N</code> on the stream endpoint prints the agent's reasoning arriving live, including a repair. The security tests pass, and no prompt is responsible for any of it.</p>
+        <p><strong>✓ Complete.</strong> Security tests, endpoints, column validation, execution guardrails, and the streaming endpoint all verified — including a live <code>curl -N</code> run that shows a repair happening in real time.</p>
       </div>
     </div>
   </section>
@@ -711,64 +725,76 @@
     </div>
 
     <div class="blocks">
-      <div class="block">
+      <div class="block done">
         <div class="clock">45 min</div>
         <div>
+          <span class="tag-partial">Partial</span>
           <h3>Vite, TypeScript, Tailwind, and a CORS fight</h3>
           <p>Scaffold the client, point it at the API, lose twenty minutes to CORS as everyone does, then render <code>/api/schema</code> as a table browser so the user can see what they're allowed to ask about.</p>
           <p class="why"><b>learn</b> — typing API responses from the Pydantic models you already wrote; the dev-server proxy.</p>
+          <p style="color:var(--muted);font-size:0.86rem">Scaffolded with Next.js instead of Vite, plus Tailwind and shadcn/ui. <code>SchemaBrowser</code> renders <code>/api/schema</code> as a card-per-table view with loading skeletons.</p>
         </div>
       </div>
 
-      <div class="block">
+      <div class="block done">
         <div class="clock">50 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>Ask a question, see a table</h3>
           <p>Query box, submit, results grid, generated SQL shown below it. Plain <code>fetch</code> against the non-streaming endpoint first — the boring version, working, before anything streams.</p>
           <p class="why"><b>learn</b> — loading and error states as first-class UI, not afterthoughts.</p>
+          <p style="color:var(--muted);font-size:0.86rem"><code>QueryPanel</code> + <code>store/query.ts</code>: fetches <code>/api/query</code>, shows the SQL, a results table, loading/error states, and a repair-count badge.</p>
         </div>
       </div>
 
-      <div class="block">
+      <div class="block done">
         <div class="clock">80 min</div>
         <div>
+          <span class="tag-partial">Partial</span>
           <h3>A hook that consumes the stream</h3>
           <p><code>useQueryStream</code>: open the SSE connection, reduce each event into React state, tick off the pipeline as it happens — <em>schema retrieved ✓ · SQL generated ✓ · validated ✓ · executed ✓</em>. Then swap the transport for a WebSocket to feel what changes and what doesn't.</p>
           <p class="why"><b>learn</b> — streaming as a state reducer; cleanup on unmount; SSE versus WebSockets with actual experience behind the opinion.</p>
+          <p style="color:var(--muted);font-size:0.86rem"><code>frontend/src/hooks/useQueryStream.ts</code>: <code>useReducer</code> over hand-parsed SSE framing (needed since <code>EventSource</code> can't POST), <code>AbortController</code> cleanup on unmount. The WebSocket comparison is deliberately cut, per the plan's own closing note ("drop the WebSocket comparison" if a day runs long) — user's call.</p>
         </div>
       </div>
 
-      <div class="block loop">
+      <div class="block loop done">
         <div class="clock">70 min</div>
         <div>
           <span class="tag-loop">The money shot</span>
+          <span class="tag-done">Done</span>
           <h3>The self-healing timeline</h3>
           <p>When a repair happens, show it rather than hiding it: attempt one, the SQL, the database's complaint, then attempt two with the corrected SQL diffed against the first. A custom component, built by hand — this is the one view that explains the whole project to someone in five seconds.</p>
           <p class="why"><b>learn</b> — designing a component around a data shape you control end to end; why the failure path deserves the best UI in the app.</p>
+          <p style="color:var(--muted);font-size:0.86rem"><code>frontend/src/components/repair-timeline.tsx</code>: rebuilds each attempt from the raw <code>useQueryStream</code> event log (no new state needed), shows attempt 1's SQL plain and every later attempt as a hand-rolled word-level LCS diff against the previous attempt, with the DB error under any failed attempt. Wired into the stream demo button, which now forces a first-attempt failure so the timeline reliably has something to show.</p>
         </div>
       </div>
 
-      <div class="block">
+      <div class="block done">
         <div class="clock">60 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>Borrow the polish</h3>
           <p>Bring in shadcn/ui for the shell — dialog, tabs, table, skeletons — plus a token-by-token streamed answer and syntax-highlighted SQL. Use the library for the generic parts and keep the timeline hand-built.</p>
           <p class="why"><b>learn</b> — where a component library earns its keep and where it flattens the thing that makes your app yours.</p>
+          <p style="color:var(--muted);font-size:0.86rem">shadcn/ui in for button/card/input/table/badge/skeleton, plus a dark-mode toggle. <code>SqlHighlight</code> (a small hand-rolled regex tokenizer, no new dependency — the SQL here is single-statement and small) replaces every plain <code>&lt;pre&gt;</code> SQL block. <code>TypewriterText</code> reveals the final answer progressively — noted honestly as a client-side simulation, since the backend sends the whole answer as one event, not real token-by-token LLM streaming.</p>
         </div>
       </div>
 
-      <div class="block">
+      <div class="block done">
         <div class="clock">45 min</div>
         <div>
+          <span class="tag-done">Done</span>
           <h3>Demo pass</h3>
           <p>Run five questions: two easy, two that need joins and aggregation, one engineered to fail and recover. Record it. Note first-attempt accuracy and recovery rate against day one's baseline — the two numbers the whole project exists to move.</p>
           <p class="why"><b>learn</b> — evaluation starts as two numbers in a notebook, long before it's a framework.</p>
+          <p style="color:var(--muted);font-size:0.86rem">Recorded in <code>backend/graph/demo_run.txt</code>. First pass: 2/5 on the first attempt, 3/5 recovered — two of those "recoveries" turned out to be the sql_guard alias bug above, not real failures. After the fix: <b>4/5 first-attempt accuracy, 1/5 recovered via repair, 0/5 unrecovered</b> — the one designed to fail (wrong table name) repairs cleanly in one attempt every time.</p>
         </div>
       </div>
 
       <div class="gate">
         <span class="lbl">End of day 4 — checkpoint</span>
-        <p>A stranger types a question, watches the agent think, sees it stumble and correct itself, and reads the answer — without being told what any of it means.</p>
+        <p><strong>✓ Complete.</strong> A stranger types a question, watches the agent think, sees it stumble and correct itself, and reads the answer. The demo pass is recorded with real numbers, not just a description of the feature.</p>
       </div>
     </div>
   </section>
